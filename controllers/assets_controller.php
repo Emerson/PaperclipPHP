@@ -6,8 +6,10 @@ class AssetsController extends PaperclipAppController {
 	var $components = array('Session','RequestHandler');
 	
 	function index() {
-		$assets = $this->Asset->find('all');
-		$this->set('assets',$assets);
+		$this->paginate = array(			
+			'limit'=>13
+		);		
+		$this->set('assets',$this->paginate());	
 	}
 	
 	function upload() {		
@@ -26,6 +28,7 @@ class AssetsController extends PaperclipAppController {
 	}
 	
 	function uploadify() {
+		$result['status'] = 'failure';
 		if(!empty($_FILES) && is_uploaded_file($_FILES['Filedata']['tmp_name'])) {
 			$this->log('file data is there',7);
 			$filedata = array(
@@ -33,16 +36,30 @@ class AssetsController extends PaperclipAppController {
 				'tmp_name' => $_FILES['Filedata']['tmp_name']
 				);			
 			if($this->Asset->saveAsset($filedata)) {
-				echo "success";
+				$result['status'] = 'success';
 				$this->log('saved',7);
-			}else{
-				echo "fail";
+			}else{				
 				$this->log('not saved',7);				
 			}
-		}
-		$this->log('we are getting data!',7);
+		}	
 		$this->log($_FILES,7);
-		exit();
+		$this->log($result,7);
+		$this->set('result',$result);
+		$this->render('../elements/json', 'ajax');
+	}
+	
+	function getassets() {
+		$result['status'] = 'failure';
+		$options = array(
+			'per_page'=>10,
+			'page'=>1
+			);
+		$result['assets'] = $this->Asset->getFiles($options);
+		if(!empty($result['assets'])) {
+			$result['status'] = 'success';
+		}
+		$this->set('result',$result);
+		$this->render('../elements/json', 'ajax');
 	}
 
 }

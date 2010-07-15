@@ -24,6 +24,20 @@
 	background: url('../img/uploadProgress.png') 1px 0px no-repeat;
 }
 
+#paperclipWrapper .uploadifyQueueItem .percentage {
+	position: absolute;
+	font-size:10px;
+	position:absolute;
+	right:14px;
+	top:33px;
+}
+
+.footerLeft {
+	background: #efefef;
+	padding: 5px;
+	border-top: 1px solid #717171;
+}
+
 #paperclipWrapper .uploadifyQueueItem  .fileName {
 	display: block;
 	padding: 6px 0 6px 15px;

@@ -51,6 +51,43 @@ $(document).ready(function() {
 	
 	$(".assetList ul  li:even").addClass('even');
 	
+	// Getting objects with JSON
+	/* $.post('getassets', {data: 'test'}, function(data) {
+		$.parseJSON(data);
+		$.each(data.assets, function(index,object) {
+			$(".assetList ul").append(
+				"<li>"+
+					"<input type='checkbox' id='"+object.Asset.id+"' />"+object.Asset.filename+					
+				"</li>"
+			);
+		});
+		console.log(data);
+	}); */
+	
+	var page = 1;
+	
+	$(".next").click(function() {
+		$.post('getassets', {per_page: '13', page: page+1}, function(data) {
+			$.parseJSON(data);
+			if(data.status=='success') {
+				page++;
+				$(".assetList ul").empty();
+				$.each(data.assets, function(index,object) {
+					$(".assetList ul").append(
+						"<li>"+
+						"<input type='checkbox' id='"+object.Asset.id+"' />"+object.Asset.filename+					
+						"</li>"
+					);
+				});
+			}
+		});
+		return false;
+	});
+	
+	$(".prev").click(function() {
+		return false;
+	});
+	
 });
 </script>
 
@@ -65,6 +102,9 @@ $(document).ready(function() {
 					<?php echo $this->element('asset',array('asset'=>$asset)); ?>
 				<?php endforeach; ?>	
 			</ul>	
+		</div>
+		<div class="footerLeft">
+			<?php echo $paginator->numbers(); ?>														
 		</div>	
 	</div>
 	
