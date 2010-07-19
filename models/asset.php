@@ -3,123 +3,138 @@ class Asset extends PaperclipAppModel {
 	
 	var $name = 'Asset';
 	var $options = array(
-		'attachment_folder'=>'assets',
-		'permitted_types' => array('image/gif','image/jpeg','image/pjpeg','image/png'),
+		'asset_folder'=>'assets', // webroot/assets/
+		'valid_types' => array('image/gif','image/jpeg','image/pjpeg','image/png','application/postscript',
+								'audio/aiff','audio/x-aiff','video/avi','application/rtf','application/x-rtf','	text/richtext',
+								'text/plain','audio/wav','audio/x-wav','application/msword','application/xml','text/xml',
+								'application/x-compressed','application/x-zip-compressed','application/zip','multipart/x-zip',
+								'audio/mpeg3','audio/x-mpeg-3','video/mpeg','video/x-mpeg'),
+		'image_types' => array('image/jpeg','image/pjpeg','image/png'),
 		'styles' => array(
-			'thumbnail' => array(50,50,'square'),
-			'medium'	=> array(300,300,'square')			
+			'preview'	=> array(50,38,'square'),
+			'thumbnail' => array(150,110,'square'),
+			'medium'	=> array(300,300,'square')
 		)	
-	);
+	);				
+	
+
+	/*
+	*	Returns the full asset folder path with trailing slash
+	*/
+	function path() {
+		return WWW_ROOT . $this->options['asset_folder'] . DS;
+	}
+	
 	
 	/*
-	*	saveFile($upload)
-	*	
-	*	The workhorse of Paperclip that takes the pain out of saving files and
-	*	keeping track of all the details.
-	*
-	*	returns true on success, false on failure
-	*
+	*	Creates the style folders for a given id
 	*/
-	function saveAsset($upload) {
-		$this->log($this->options['styles'],7);
-		$this->log('step 1',7);		
+	function create_folders($id) {
+		$result['status'] = false;
+		$folder = New Folder();
+		foreach($this->options['styles'] as $name=>$value)	{			
+			if($folder->create($this->path(). $id . DS . $name)) {
+				$result['status'] = true;
+			}else{
+				$result['message'] = 'there was a problem creating the folder';
+			}
+		}
+		return $result;
+	}
+	
+	
+	function save_asset($file) {		
+		$result['status'] = false;
+		$this->log('file info: ',7);
+		$this->log($file,7);
+		$info = $this->fileinfo($file);
+		if(empty($info['content_type']) || !in_array($info['content_type'],$this->options['valid_types'])) {
+			$this->log('not saving, invalid filetype...',7);
+			$result['message'] = 'Invalid filetype';
+			return $result;
+		}
+		if($this->save($info)) {
+			$this->log('saved on line 52',7);
+			$folder = new Folder();
+			if($folder->create($this->path() . $this->id . DS . 'original')) {
+				move_uploaded_file($file['tmp_name'],$this->path() . $this->id . DS . 'original' . DS . $info['filename']);
+				if(in_array($info['content_type'],$this->options['image_types'])) {													
+					if(	$this->create_folders($this->id) && $this->process_styles($this->id,$info)) {
+						$result['message'] = 'files resized and saved';
+						$result['status'] = true;
+					}
+				}				
+			}else{
+				$result['message'] = "There was a problem creating a folder, check your permissions";
+				return $result;
+			}			
+		}
+		return $result;				
+	}
+	
+	
+	/*
+	*	Returns an array of uploaded file information
+	*	
+	*	Accepts a $file 
+	*	Returns an array: array('filesize','filename','content_type','width','height')
+	*/
+	function fileinfo($file) {		
 		App::import('Vendor', 'Paperclip.getid3/getid3');
 		$getID3 = new getID3;		
-		$folder = new Folder();	
-		if($folder->create('../webroot/assets')) {			
-			$file = new File($upload['tmp_name']);		
-			$fileinfo = $getID3->analyze($upload['tmp_name']);
-			
-			/*
-			TODO - Refactor for nicer code. Try and process file data only once with
-			getID3 to avoid uneeded system thrash
-			*/
-			$info = array(
-				'filesize'		=>	$file->size(),
-				'filename'		=>	$file->safe($upload['name']),
-				'content_type'	=>	'',
-				'width'			=>	'',
-				'height'		=>	''
-			);
-			
-					
-			$this->data['filesize'] = $file->size();
-			$this->data['filename'] = $file->safe($upload['name']);						
-			if(!empty($fileinfo['mime_type'])) {				
-				$info['content_type'] = $fileinfo['mime_type'];	
+		$file_class = new File($file['tmp_name']);	
+		$fileinfo = $getID3->analyze($file['tmp_name']);	
+		if(!empty($fileinfo['mime_type'])) {				
+				$results['content_type'] = $fileinfo['mime_type'];	
+		}
+		if(!empty($fileinfo['jpg']['exif']['COMPUTED']['Height']) &&
+		   !empty($fileinfo['jpg']['exif']['COMPUTED']['Width'])) {
+			$results['width'] = $fileinfo['jpg']['exif']['COMPUTED']['Width'];
+			$results['height'] = $fileinfo['jpg']['exif']['COMPUTED']['Height'];
+		}
+		if(!empty($fileinfo['png']['IHDR']['width']) &&
+		   !empty($fileinfo['png']['IHDR']['height'])) {
+			$results['width'] = $fileinfo['png']['IHDR']['width'];
+			$results['height'] = $fileinfo['png']['IHDR']['height'];
+		}
+		if(!empty($fileinfo['gif']['header']['raw']['width']) &&
+		   !empty($fileinfo['gif']['header']['raw']['height'])) {
+			$results['width'] = $fileinfo['gif']['header']['raw']['width'];
+			$results['height'] = $fileinfo['gif']['header']['raw']['height'];
+		}
+		$results['filename'] = $file_class->safe($file['name']);
+		$results['filesize'] = $file_class->size();
+		return $results;	
+	}
+	
+	/*
+	*	Takes care of all intial image processing
+	*	
+	*	Accepts an $id and file $info 
+	*	Returns an array: array('filesize','filename','content_type','width','height')
+	*/
+	function process_styles($id,$info) {
+		$result = false;
+		$orig_ratio = $info['width'] / $info['height'];
+		if(App::import('Vendor', 'Paperclip.PHPthumb', array('file'=>'PHPthumb'.DS.'ThumbLib.inc.php'))) {
+			$this->log('looks good to me',7);
+		}
+		foreach($this->options['styles'] as $name=>$options) {			
+			try {
+			$this->log($this->path() . $this->id . DS . 'original' . DS . $info['filename'],7);
+			$thumb = PhpThumbFactory::create($this->path() . $this->id . DS . 'original' . DS . $info['filename']);
+			$this->log('PHPThumb has something',7);
 			}
-			if(!empty($fileinfo['jpg']['exif']['COMPUTED']['Height']) &&
-			   !empty($fileinfo['jpg']['exif']['COMPUTED']['Width'])) {
-				$info['width'] = $fileinfo['jpg']['exif']['COMPUTED']['Width'];
-				$info['height'] = $fileinfo['jpg']['exif']['COMPUTED']['Height'];
-			}
-			if(!empty($fileinfo['png']['IHDR']['width']) &&
-			   !empty($fileinfo['png']['IHDR']['height'])) {
-				$info['width'] = $fileinfo['png']['IHDR']['width'];
-				$info['height'] = $fileinfo['png']['IHDR']['height'];
-			}
-			if(!empty($fileinfo['gif']['header']['raw']['width']) &&
-			   !empty($fileinfo['gif']['header']['raw']['height'])) {
-				$info['width'] = $fileinfo['gif']['header']['raw']['width'];
-				$info['height'] = $fileinfo['gif']['header']['raw']['height'];
-			}
-										
-			$this->data['content_type'] = $info['content_type'];
-			$this->data['width'] = $info['width'];
-			$this->data['height'] = $info['height'];					
-					
-			if(isset($fileinfo['mime_type']) && $this->validMimeType($fileinfo['mime_type'])) {
-				// Save the record
-				$this->log('step 5',7);
-				$this->log($this->data,7);	
-				if($this->save($this->data)) {
-					if($folder->create('../webroot/assets/'.$this->id.'/original')) {
-						$save_path = new Folder('assets');
-						$path = $save_path->pwd() . '/' . $this->id .'/original/'.$file->safe($upload['name']);												
-						if(move_uploaded_file($upload['tmp_name'],$path)) {
-							$this->log('file has been moved',7);
-							foreach($this->options['styles'] as $name=>$values) {
-								if($folder->create('../webroot/assets/'.$this->id.'/'.$name)) {									
-									$orig_path = 'assets/'.$this->id.'/original/'.$info['filename'];
-									if(file_exists($orig_path)) {
-										$new_image = @imagecreatetruecolor($values[0],$values[1]);
-										$tmp_image = @imagecreatefromjpeg($orig_path);
-										@imagecopyresampled($new_image,$tmp_image,0,0,0,0,$values[0],$values[1],$info['width'],$info['height']);									
-										if(imagejpeg($new_image,'assets/'.$this->id.'/'.$name.'/'.$info['filename'])) {
-											$this->log('copied',7);
-										}																													
-									}
-								}
-							}							
-							return true;
-						}else{
-							$this->log('file has not been moved',7);
-							return false;
-						}
-					}else{
-					
-						return false;
-					}
-					
-				}else{
-					return false;
-				}				
-				return true;
-			}else{
+			catch(Exception $e) {
+				$this->log('There was a problem creating the thumbnail',7);
 				return false;
-			}	
-		}else{
-			return false;
-		}								
-		return true;
+			}
+			$this->log('starting resize',7);
+			$thumb->adaptiveResize($options[0],$options[1]);
+			$thumb->save($this->path() . $this->id . DS . $name . DS . $info['filename']);
+			$result = true;
+		}
+		return $result;
 	}
-	
-	
-	function validMimeType($mimeType) {
-		// TODO - add mimetype validations
-		return true;
-	}
-	
-	
 }
 ?>

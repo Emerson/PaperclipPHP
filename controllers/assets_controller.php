@@ -18,7 +18,7 @@ class AssetsController extends PaperclipAppController {
 		$this->log($_POST,7);
 		$this->log($_FILES,7);
 		if(!empty($this->data) && is_uploaded_file($this->data['Asset']['upload']['tmp_name']))	{		
-			if($this->Asset->saveAsset($this->data['Asset']['upload'])) {
+			if($this->Asset->save_asset($this->data['Asset']['upload'])) {
 				$this->Session->setFlash('Your upload was complete');
 			}else{
 				$this->Session->setFlash('Your upload was not complete','default',array('class'=>'flashError'));
@@ -35,14 +35,14 @@ class AssetsController extends PaperclipAppController {
 				'name' => $_FILES['Filedata']['name'],
 				'tmp_name' => $_FILES['Filedata']['tmp_name']
 				);			
-			if($this->Asset->saveAsset($filedata)) {
+			if($this->Asset->save_asset($filedata)) {
 				$result['status'] = 'success';
 				$this->log('saved',7);
 			}else{				
 				$this->log('not saved',7);				
 			}
 		}	
-		$this->log($_FILES,7);
+		// $this->log($_FILES,7);
 		$this->log($result,7);
 		$this->set('result',$result);
 		$this->render('../elements/json', 'ajax');
@@ -60,6 +60,10 @@ class AssetsController extends PaperclipAppController {
 		}
 		$this->set('result',$result);
 		$this->render('../elements/json', 'ajax');
+	}
+	
+	function process() {		
+		$this->Asset->create_folders(304);		
 	}
 
 }
