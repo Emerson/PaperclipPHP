@@ -13,10 +13,6 @@ class AssetsController extends PaperclipAppController {
 	}
 	
 	function upload() {		
-		$this->log($this->data,7);
-		$this->log('something is happening',7);
-		$this->log($_POST,7);
-		$this->log($_FILES,7);
 		if(!empty($this->data) && is_uploaded_file($this->data['Asset']['upload']['tmp_name']))	{		
 			if($this->Asset->save_asset($this->data['Asset']['upload'])) {
 				$this->Session->setFlash('Your upload was complete');
@@ -26,6 +22,25 @@ class AssetsController extends PaperclipAppController {
 		}				
 		$this->redirect(array('action'=>'index'));		
 	}
+	
+	function delete($ids) {
+		$this->log($this->data,7);
+		foreach($this->data['Assets'] as $id=>$value) {
+			if($value==1) {
+				$this->Asset->delete($id);
+			}
+		}
+		$this->Session->setFlash('Files have been deleted');
+		$this->redirect(array('action'=>'index'));
+	}
+	
+	
+	
+	/*
+	*
+	*	AJAX Actions
+	*
+	*/
 	
 	function uploadify() {
 		$result['status'] = 'failure';

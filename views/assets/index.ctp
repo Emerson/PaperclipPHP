@@ -96,6 +96,7 @@ $(document).ready(function() {
 	<div class="paperclipLeft">
 		<div class="headerLeft">
 		</div>
+		<?php echo $form->create('Assets',array('action'=>'delete'));?>
 		<div class="assetList">
 			<ul>
 				<?php foreach($assets as $asset): ?>
@@ -103,9 +104,11 @@ $(document).ready(function() {
 				<?php endforeach; ?>	
 			</ul>	
 		</div>
-		<div class="footerLeft">
+		<div class="footerLeft">			
+			<?php echo $form->submit('delete selected');?>			
 			<?php echo $paginator->numbers(); ?>														
-		</div>	
+		</div>
+		<?php echo $form->end();?>
 	</div>
 	
 	<div class="paperclipRight">

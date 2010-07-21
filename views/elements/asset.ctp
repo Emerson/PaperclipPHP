@@ -1,5 +1,5 @@
 <li>
-	<input type="checkbox" value="<?php echo $asset['Asset']['id'];?>" />
+	<?php echo $form->input($asset['Asset']['id'],array('type'=>'checkbox','label'=>false,'div'=>false));?>	
 	<?php echo $html->image('/assets/'.$asset['Asset']['id'].'/preview/'.$asset['Asset']['filename'],
 						array('url'=>'/assets/'.$asset['Asset']['id'].'/original/'.$asset['Asset']['filename']));?>
 						

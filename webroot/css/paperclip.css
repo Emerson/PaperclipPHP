@@ -154,10 +154,14 @@
 	background: #f1f5fa;
 }
 
-#paperclipWrapper form {
+#paperclipRight form {
 	margin: 0;
 	padding: 0;
 	width: 300px;
+}
+
+#paperclipLeft form {
+	
 }
 
 #paperclipWrapper input, textarea {

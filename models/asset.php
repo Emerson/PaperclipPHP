@@ -15,7 +15,13 @@ class Asset extends PaperclipAppModel {
 			'thumbnail' => array(150,110,'square'),
 			'medium'	=> array(300,300,'square')
 		)	
-	);				
+	);
+	
+	
+	function afterDelete() {
+		$folder = new Folder();
+		$folder->delete($this->path() . $this->id . DS);		
+	}
 	
 
 	/*
